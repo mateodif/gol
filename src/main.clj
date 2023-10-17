@@ -3,32 +3,27 @@
 
 (def col 100)
 
-(defn random-row []
-  (vec (take col (repeatedly (fn [] (rand-int 2))))))
+(defn take-repeatedly [f]
+  (vec (take col (repeatedly f))))
 
-;;   0. [ 0 1 0 1 1 ]
-;;   1. [ 1 1 0 0 1 ]
-;;   2. [ 0 1 0 1 1 ]
-;;   3. [ 1 0 0 1 1 ]
-;;   4. [ 1 1 0 0 1 ]
+(defn random-row []
+  (take-repeatedly #(rand-int 2)))
+
 (def grid
-  (atom (vec (take col (repeatedly random-row)))))
+  (atom (take-repeatedly random-row)))
+
+(defn neighbour-range [x]
+  (range (max (dec x) 0) (min (+ x 2) col)))
 
 (defn neighbours-coords [x y]
-  (remove #{[x y]}
-          (for [y (range (max (dec y) 0) (min (+ y 2) col))
-                x (range (max (dec x) 0) (min (+ x 2) col))]
-            [x y])))
+  (let [cells-in-range (for [y (neighbour-range y)
+                             x (neighbour-range x)]
+                         [x y])]
+    (remove #{[x y]} cells-in-range)))
 
 (defn neighbours [grid [x y]]
   (let [neighbour-at (fn [grid [x y]] (nth (nth grid y) x))]
     (map #(neighbour-at grid %) (neighbours-coords x y))))
-
-;; 1 1 0
-;; 0   0
-;; 0 1 1
-(neighbours grid [2 2])
-(neighbours-coords 2 2)
 
 (defn live-neighbours [grid [x y]]
   (count (filter pos? (neighbours grid [x y]))))
@@ -51,27 +46,26 @@
     (for [[y cell] (map-indexed vector row)]
       (cond
         (and (zero? cell) (lives? grid [x y])) 1
-
         (and (pos? cell) (dies? grid [x y])) 0
-
         :else cell))))
 
 (defn setup []
-  (q/frame-rate 20)
+  (q/frame-rate 1)
   (q/background 255))
 
 (defn draw []
-  (q/fill 220 200 255)
   (swap! grid next-generation)
 
   (doseq [[x row] (map-indexed vector @grid)]
     (doseq [[y cell] (map-indexed vector row)]
-      (when (pos? cell)
-        (q/rect (* x 4) (* y 4) 4 4)))))
+      (if (pos? cell)
+        (q/fill 220 200 255)
+        (q/fill 255))
+      (q/rect (* x 10) (* y 10) 10 10))))
 
 (q/defsketch gol
   :title "GoL"
   :settings #(q/smooth 2)
   :setup setup
   :draw draw
-  :size [400 400])
+  :size [1000 1000])
